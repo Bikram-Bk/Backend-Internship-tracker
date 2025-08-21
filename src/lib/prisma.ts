@@ -1,4 +1,4 @@
-import { PrismaClient } from '../generated/prisma/index.js';
+import { PrismaClient } from '@prisma/client'; 
 
 // Create a global Prisma client instance
 const globalForPrisma = globalThis as unknown as {
