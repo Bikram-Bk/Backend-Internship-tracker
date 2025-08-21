@@ -1,0 +1,45 @@
+{
+  "name": "hono-app",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format": "prettier --write src/**/*.ts",
+    "format:check": "prettier --check src/**/*.ts",
+    "generate:jwt-secret": "node scripts/generate-jwt-secret.js",
+    "decode:jwt": "node scripts/decode-jwt.js"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.15.0",
+    "@prisma/client": "^6.11.1",
+    "@types/multer": "^2.0.0",
+    "bcrypt": "^6.0.0",
+    "fs-extra": "^11.3.0",
+    "hono": "^4.8.4",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.1",
+    "nodemailer": "^7.0.5",
+    "path": "^0.12.7",
+    "prisma": "^6.11.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.30.1",
+    "@types/bcrypt": "^5.0.2",
+    "@types/fs-extra": "^11.0.4",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^20.11.17",
+    "@types/nodemailer": "^6.4.17",
+    "@typescript-eslint/eslint-plugin": "^8.36.0",
+    "@typescript-eslint/parser": "^8.36.0",
+    "eslint": "^9.30.1",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-prettier": "^5.5.1",
+    "prettier": "^3.6.2",
+    "tsx": "^4.7.1",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.36.0"
+  }
+}

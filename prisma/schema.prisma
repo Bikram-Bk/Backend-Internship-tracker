@@ -1,0 +1,85 @@
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+enum Role {
+  USER
+  ADMIN
+  MODERATOR
+}
+
+// User model for authentication and user management
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   
+  phone     String?
+  avatar    String?
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  dailyLogs DailyLog[]
+
+  // Relations
+  passwordResetTokens PasswordResetToken[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+// Refresh token model for proper JWT refresh token implementation
+model RefreshToken {
+  id          String   @id @default(cuid())
+  token       String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  isRevoked   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Optional: Track device/session info for better security
+  deviceInfo  String?
+  ipAddress   String?
+  userAgent   String?
+
+  @@map("refresh_tokens")
+}
+
+// Password reset token model
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("password_reset_tokens")
+}
+
+model DailyLog {
+  id        String   @id @default(cuid())
+  date      DateTime 
+  type      String
+  task      String
+  details   String
+  hours     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("daily_logs")
+}
