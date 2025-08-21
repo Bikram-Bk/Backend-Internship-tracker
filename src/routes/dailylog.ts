@@ -179,6 +179,7 @@ dailyLog.get('/log/range', authMiddleware, async c => {
     );
   }
 });
+
 dailyLog.get('/log/analytics/type', authMiddleware, async c => {
   try {
     const user = c.get('user');
@@ -189,7 +190,10 @@ dailyLog.get('/log/analytics/type', authMiddleware, async c => {
     });
     return c.json({
       success: true,
-      data: analytics.map(a => ({ type: a.type, count: a._count.type })),
+      data: analytics.map((a: { type: string; _count: { type: number } }) => ({
+        type: a.type,
+        count: a._count.type,
+      })),
       message: 'Analytics by type retrieved successfully',
     });
   } catch (error) {
@@ -366,7 +370,10 @@ dailyLog.get('/log/types', authMiddleware, async c => {
     });
     return c.json({
       success: true,
-      data: types.map(t => ({ type: t.type, count: t._count.type })),
+      data: types.map((t: { type: string; _count: { type: number } }) => ({
+        type: t.type,
+        count: t._count.type,
+      })),
       message: 'All unique types and counts retrieved successfully',
     });
   } catch (error) {
