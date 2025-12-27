@@ -156,7 +156,7 @@ authRoutes.post('/forgot-password', async c => {
       const resetToken = await passwordResetService.generateResetToken(user.id);
 
       // Send password reset email
-      await emailService.sendPasswordResetEmail(
+      await emailService.sendChangePasswordEmail(
         user.email,
         user.username,
         resetToken
@@ -173,6 +173,7 @@ authRoutes.post('/forgot-password', async c => {
       );
     } catch (emailError) {
       console.error('Error sending password reset email:', emailError);
+      console.log(emailError);
 
       // Still return success to not reveal if email exists
       return c.json(
@@ -268,8 +269,6 @@ authRoutes.post('/reset-password', async c => {
     );
   }
 });
-
-
 
 // Change password (for authenticated users who know their current password)
 authRoutes.post('/change-password', authMiddleware, async c => {
