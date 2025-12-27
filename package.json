@@ -11,7 +11,9 @@
     "format": "prettier --write src/**/*.ts",
     "format:check": "prettier --check src/**/*.ts",
     "generate:jwt-secret": "node scripts/generate-jwt-secret.js",
-    "decode:jwt": "node scripts/decode-jwt.js"
+    "decode:jwt": "node scripts/decode-jwt.js",
+    "seed": "tsx prisma/seed.ts",
+    "backup": "tsx prisma/backup.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.15.0",

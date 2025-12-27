@@ -1,8 +1,32 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/middleware.js';
 import { userService } from '../services/userservices.js';
+import { attendeeService } from '../services/attendee-service.js';
 
 const userRoutes = new Hono();
+
+userRoutes.get('/events', authMiddleware, async c => {
+  try {
+    const { userId } = c.get('user');
+    const events = await attendeeService.getUserRegisteredEvents(userId);
+
+    return c.json({
+      success: true,
+      data: events,
+      message: 'User events retrieved successfully',
+    });
+  } catch (error) {
+    console.error('Error fetching user events:', error);
+    return c.json(
+      {
+        success: false,
+        error: 'Failed to fetch user events',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
+      500
+    );
+  }
+});
 
 userRoutes.get('/profile', authMiddleware, async c => {
   try {

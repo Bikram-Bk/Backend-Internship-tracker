@@ -47,6 +47,7 @@ export const corsMiddleware: MiddlewareHandler = async (c, next) => {
   );
   c.header('Access-Control-Allow-Credentials', 'true');
   c.header('Access-Control-Max-Age', '86400');
+  c.header('Access-Control-Expose-Headers', '*');
 
   // Handle preflight requests
   if (c.req.method === 'OPTIONS') {

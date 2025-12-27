@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -9,48 +8,82 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 enum Role {
   USER
   ADMIN
   MODERATOR
 }
 
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+}
+
+enum EventVisibility {
+  PUBLIC
+  PRIVATE
+  UNLISTED
+}
+
+enum AttendeeStatus {
+  REGISTERED
+  WAITLIST
+  CANCELLED
+  ATTENDED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  REFUNDED
+  FAILED
+}
+
 // User model for authentication and user management
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
-  username  String   
+  username  String
   phone     String?
   avatar    String?
+  bio       String?  @db.Text
   password  String
   role      Role     @default(USER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  dailyLogs DailyLog[]
 
-  // Relations
+  // Auth relations
   passwordResetTokens PasswordResetToken[]
-  refreshTokens RefreshToken[]
+  refreshTokens       RefreshToken[]
+  dailyLogs           DailyLog[]
+
+  // Event relations
+  organizedEvents Event[]    @relation("OrganizedEvents")
+  attendingEvents Attendee[]
+  favorites       Favorite[]
+  reviews         Review[]
 
   @@map("users")
 }
 
 // Refresh token model for proper JWT refresh token implementation
 model RefreshToken {
-  id          String   @id @default(cuid())
-  token       String   @unique
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt   DateTime
-  isRevoked   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Optional: Track device/session info for better security
-  deviceInfo  String?
-  ipAddress   String?
-  userAgent   String?
+  deviceInfo String?
+  ipAddress  String?
+  userAgent  String?
 
   @@map("refresh_tokens")
 }
@@ -70,7 +103,7 @@ model PasswordResetToken {
 
 model DailyLog {
   id        String   @id @default(cuid())
-  date      DateTime 
+  date      DateTime
   type      String
   task      String
   details   String
@@ -78,8 +111,170 @@ model DailyLog {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
   @@map("daily_logs")
+}
+
+// Category model for event categorization
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  icon        String
+  color       String
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  events Event[]
+
+  @@map("categories")
+}
+
+// Event model for event management
+model Event {
+  id               String  @id @default(cuid())
+  title            String
+  slug             String  @unique
+  description      String  @db.Text
+  shortDescription String? @db.VarChar(300)
+
+  // Dates
+  startDate   DateTime
+  endDate     DateTime
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  publishedAt DateTime?
+
+  // Location
+  isVirtual   Boolean @default(false)
+  venueName   String?
+  address     String?
+  city        String?
+  state       String?
+  zipCode     String?
+  country     String?
+  latitude    Float?
+  longitude   Float?
+  virtualLink String?
+
+  // Capacity & Pricing
+  capacity    Int?
+  isUnlimited Boolean  @default(false)
+  isFree      Boolean  @default(true)
+  price       Decimal? @db.Decimal(10, 2)
+  currency    String   @default("USD")
+
+  // Status & Visibility
+  status     EventStatus     @default(DRAFT)
+  visibility EventVisibility @default(PUBLIC)
+
+  // Media
+  coverImage String
+  images     String[]
+
+  // Metadata
+  tags      String[]
+  viewCount Int      @default(0)
+
+  // Relations
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id])
+  organizerId String
+  organizer   User     @relation("OrganizedEvents", fields: [organizerId], references: [id])
+
+  attendees Attendee[]
+  favorites Favorite[]
+  reviews   Review[]
+  updates   EventUpdate[]
+
+  @@index([categoryId])
+  @@index([organizerId])
+  @@index([startDate])
+  @@index([status])
+  @@index([city])
+  @@map("events")
+}
+
+// Attendee model for event registrations
+model Attendee {
+  id      String  @id @default(cuid())
+  eventId String
+  event   Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId  String?
+  user    User?   @relation(fields: [userId], references: [id])
+
+  // Guest info (if not registered user)
+  guestName  String?
+  guestEmail String?
+  guestPhone String?
+
+  // Registration details
+  ticketType   String         @default("General")
+  registeredAt DateTime       @default(now())
+  status       AttendeeStatus @default(REGISTERED)
+  checkedInAt  DateTime?
+
+  // Payment (for paid events)
+  paymentStatus PaymentStatus @default(PENDING)
+  paymentAmount Decimal?      @db.Decimal(10, 2)
+  transactionId String?
+
+  // Ticket
+  ticketCode String @unique @default(cuid())
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+  @@map("attendees")
+}
+
+// Favorite model for saved events
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, eventId])
+  @@index([userId])
+  @@index([eventId])
+  @@map("favorites")
+}
+
+// Review model for event reviews
+model Review {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  rating    Int // 1-5 stars
+  comment   String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+  @@map("reviews")
+}
+
+// EventUpdate model for organizer announcements
+model EventUpdate {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title     String
+  message   String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([eventId])
+  @@map("event_updates")
 }
