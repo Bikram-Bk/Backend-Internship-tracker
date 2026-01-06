@@ -12,13 +12,14 @@ eventRoutes.get('/', async (c) => {
       categoryId: c.req.query('categoryId'),
       status: c.req.query('status') || 'PUBLISHED',
       city: c.req.query('city'),
-      isFree: c.req.query('isFree') === 'true' ? true : undefined,
-      isVirtual: c.req.query('isVirtual') === 'true' ? true : undefined,
+      isFree: c.req.query('isFree') === 'true' ? true : (c.req.query('isFree') === 'false' ? false : undefined),
+      isVirtual: c.req.query('isVirtual') === 'true' ? true : (c.req.query('isVirtual') === 'false' ? false : undefined),
       startDateFrom: c.req.query('startDateFrom'),
       startDateTo: c.req.query('startDateTo'),
       limit: parseInt(c.req.query('limit') || '20'),
       offset: parseInt(c.req.query('offset') || '0'),
       sortBy: c.req.query('sortBy') || 'startDate',
+      search: c.req.query('search'),
     };
 
     const result = await eventService.getAllEvents(filters);
@@ -81,6 +82,67 @@ eventRoutes.get('/:id', async (c) => {
   }
 });
 
+// POST /api/events/request - Request event (authenticated users)
+eventRoutes.post('/request', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    const data = await c.req.json();
+
+    // Validate required fields (excluding coverImage for requests)
+    if (!data.title || !data.description || !data.categoryId || !data.startDate || !data.endDate) {
+      return c.json(
+        {
+          success: false,
+          error: 'Missing required fields',
+          message: 'Title, description, category, and dates are required',
+        },
+        400
+      );
+    }
+
+    // Validate dates
+    const startDate = new Date(data.startDate);
+    const endDate = new Date(data.endDate);
+    if (endDate <= startDate) {
+      return c.json(
+        {
+          success: false,
+          error: 'Invalid dates',
+          message: 'End date must be after start date',
+        },
+        400
+      );
+    }
+
+    // Set status to DRAFT for requests
+    const eventData = {
+      ...data,
+      status: 'DRAFT',
+    };
+
+    const event = await eventService.createEvent(eventData, user.userId);
+
+    return c.json(
+      {
+        success: true,
+        data: event,
+        message: 'Event request submitted successfully',
+      },
+      201
+    );
+  } catch (error) {
+    console.error('Error requesting event:', error);
+    return c.json(
+      {
+        success: false,
+        error: 'Failed to submit event request',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
+      500
+    );
+  }
+});
+
 // POST /api/events - Create event (admin only)
 eventRoutes.post('/', authMiddleware, requireAdmin(), async (c) => {
   try {
@@ -88,12 +150,13 @@ eventRoutes.post('/', authMiddleware, requireAdmin(), async (c) => {
     const data = await c.req.json();
 
     // Validate required fields
-    if (!data.title || !data.description || !data.categoryId || !data.startDate || !data.endDate || !data.coverImage) {
+    const isDraft = data.status === 'DRAFT';
+    if (!data.title || !data.description || !data.categoryId || !data.startDate || !data.endDate || (!isDraft && !data.coverImage)) {
       return c.json(
         {
           success: false,
           error: 'Missing required fields',
-          message: 'Title, description, category, dates, and cover image are required',
+          message: `Title, description, category, and dates are required. ${!isDraft ? 'Cover image is also required for published events.' : ''}`,
         },
         400
       );
@@ -143,7 +206,8 @@ eventRoutes.put('/:id', authMiddleware, async (c) => {
     const id = c.req.param('id');
     const data = await c.req.json();
 
-    const event = await eventService.updateEvent(id, data, user.userId);
+    const isAdmin = user.role === 'ADMIN' || user.role === 'MODERATOR';
+    const event = await eventService.updateEvent(id, data, user.userId, isAdmin);
 
     return c.json({
       success: true,

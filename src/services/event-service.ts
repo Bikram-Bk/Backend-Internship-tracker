@@ -68,6 +68,7 @@ export const eventService = {
     limit?: number;
     offset?: number;
     sortBy?: string;
+    search?: string;
   } = {}) {
     const {
       categoryId,
@@ -80,7 +81,10 @@ export const eventService = {
       limit = 20,
       offset = 0,
       sortBy = 'startDate',
+      search,
     } = filters;
+
+    console.log(`[EventService] Fetching events with search: "${search || ''}", category: ${categoryId || 'all'}`);
 
     const where: any = {
       status,
@@ -90,6 +94,26 @@ export const eventService = {
     if (city) where.city = { contains: city, mode: 'insensitive' };
     if (isFree !== undefined) where.isFree = isFree;
     if (isVirtual !== undefined) where.isVirtual = isVirtual;
+
+    // Search functionality
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { shortDescription: { contains: search, mode: 'insensitive' } },
+        { venueName: { contains: search, mode: 'insensitive' } },
+        {
+          organizer: {
+            OR: [
+              { username: { contains: search, mode: 'insensitive' } },
+              { email: { contains: search, mode: 'insensitive' } },
+            ],
+          },
+        },
+      ];
+    }
+
+    console.log('[EventService] Prisma where:', JSON.stringify(where, null, 2));
 
     if (startDateFrom || startDateTo) {
       where.startDate = {};
@@ -199,7 +223,7 @@ export const eventService = {
   },
 
   // Update event
-  async updateEvent(id: string, data: any, userId: string) {
+  async updateEvent(id: string, data: any, userId: string, isAdmin: boolean = false) {
     // Check ownership
     const event = await prisma.event.findUnique({
       where: { id },
@@ -210,7 +234,7 @@ export const eventService = {
       throw new Error('Event not found');
     }
 
-    if (event.organizerId !== userId) {
+    if (event.organizerId !== userId && !isAdmin) {
       throw new Error('Unauthorized: You can only update your own events');
     }
 
