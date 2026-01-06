@@ -222,6 +222,33 @@ export const eventService = {
     });
   },
 
+  // Get event attendees
+  async getEventAttendees(eventId: string, userId: string) {
+    // Verify ownership
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { organizerId: true },
+    });
+
+    if (!event) throw new Error('Event not found');
+    if (event.organizerId !== userId) throw new Error('Unauthorized');
+
+    return await prisma.attendee.findMany({
+      where: { eventId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            avatar: true,
+          },
+        },
+      },
+      orderBy: { registeredAt: 'desc' },
+    });
+  },
+
   // Update event
   async updateEvent(id: string, data: any, userId: string, isAdmin: boolean = false) {
     // Check ownership

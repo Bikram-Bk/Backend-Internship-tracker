@@ -28,6 +28,7 @@ enum EventVisibility {
 }
 
 enum AttendeeStatus {
+  PENDING
   REGISTERED
   WAITLIST
   CANCELLED
@@ -54,6 +55,9 @@ model User {
   role      Role     @default(USER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  // Revenue 
+  balance   Decimal  @default(0) @db.Decimal(10, 2)
 
   // Auth relations
   passwordResetTokens PasswordResetToken[]
@@ -65,8 +69,26 @@ model User {
   attendingEvents Attendee[]
   favorites       Favorite[]
   reviews         Review[]
+  payouts         Payout[]
 
   @@map("users")
+}
+
+// ... existing code ...
+
+model Payout {
+  id          String   @id @default(cuid())
+  amount      Float
+  status      String   @default("PENDING") // PENDING, PAID, REJECTED
+  destinationNumber String? // Khalti Number or Bank Details
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  createdAt   DateTime @default(now())
+  processedAt DateTime?
+
+  @@index([userId])
+  @@map("payouts")
 }
 
 // Refresh token model for proper JWT refresh token implementation
@@ -167,7 +189,7 @@ model Event {
   isUnlimited Boolean  @default(false)
   isFree      Boolean  @default(true)
   price       Decimal? @db.Decimal(10, 2)
-  currency    String   @default("USD")
+  currency    String   @default("NPR")
 
   // Status & Visibility
   status     EventStatus     @default(DRAFT)
@@ -222,7 +244,11 @@ model Attendee {
   // Payment (for paid events)
   paymentStatus PaymentStatus @default(PENDING)
   paymentAmount Decimal?      @db.Decimal(10, 2)
+  platformFee   Decimal?      @db.Decimal(10, 2) // 10% commission
   transactionId String?
+  pidx          String? // Khalti Payment ID
+
+  ticketCount   Int           @default(1)
 
   // Ticket
   ticketCode String @unique @default(cuid())
@@ -231,6 +257,16 @@ model Attendee {
   @@index([eventId])
   @@index([userId])
   @@map("attendees")
+}
+
+// System Settings for dynamic configuration
+model SystemSetting {
+  key         String   @id
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_settings")
 }
 
 // Favorite model for saved events

@@ -5,6 +5,33 @@ import { eventService } from '../services/event-service.js';
 
 const eventRoutes = new Hono();
 
+
+// GET /api/events/my-requests - Get user's requested events (authenticated users)
+eventRoutes.get('/my-requests', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    
+    // Fetch events created by this user
+    const events = await eventService.getUserEvents(user.userId);
+
+    return c.json({
+      success: true,
+      data: events,
+      message: 'User requests retrieved successfully',
+    });
+  } catch (error) {
+    console.error('Error fetching user requests:', error);
+    return c.json(
+      {
+        success: false,
+        error: 'Failed to fetch user requests',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
+      500
+    );
+  }
+});
+
 // GET /api/events - Get all events (public)
 eventRoutes.get('/', async (c) => {
   try {
@@ -78,6 +105,33 @@ eventRoutes.get('/:id', async (c) => {
         message: error instanceof Error ? error.message : 'Unknown error',
       },
       500
+    );
+  }
+});
+
+// GET /api/events/:id/attendees - Get event attendees (authenticated, owner only)
+eventRoutes.get('/:id/attendees', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    const id = c.req.param('id');
+
+    const attendees = await eventService.getEventAttendees(id, user.userId);
+
+    return c.json({
+      success: true,
+      data: attendees,
+      message: 'Attendees retrieved successfully',
+    });
+  } catch (error) {
+    console.error('Error fetching attendees:', error);
+    const statusCode = error instanceof Error && error.message.includes('Unauthorized') ? 403 : 500;
+    return c.json(
+      {
+        success: false,
+        error: 'Failed to fetch attendees',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
+      statusCode
     );
   }
 });

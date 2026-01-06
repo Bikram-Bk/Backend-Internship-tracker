@@ -14,6 +14,9 @@ import eventRoutes from './routes/event.js';
 import attendeeRoutes from './routes/attendee.js';
 import uploadRoutes from './routes/upload.js';
 import adminRoutes from './routes/admin.js';
+import paymentRoutes from './routes/payment.js';
+import settingsRoutes from './routes/settings.js';
+import payoutRoutes from './routes/payout.js';
 
 const app = new Hono();
 
@@ -64,6 +67,9 @@ app.route('/api/events', eventRoutes);
 app.route('/api/events', attendeeRoutes);
 app.route('/api/upload', uploadRoutes);
 app.route('/api/admin', adminRoutes);
+app.route('/api/payments', paymentRoutes);
+app.route('/api/settings', settingsRoutes);
+app.route('/api/payouts', payoutRoutes);
 
 app.get('/', c => {
   return c.json(

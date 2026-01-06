@@ -5,10 +5,30 @@ import { attendeeService } from '../services/attendee-service.js';
 
 const userRoutes = new Hono();
 
+import { khaltiService } from '../services/khalti-service.js';
+import { paymentProcessing } from '../services/payment-processing.js';
+
 userRoutes.get('/events', authMiddleware, async c => {
   try {
     const { userId } = c.get('user');
     const events = await attendeeService.getUserRegisteredEvents(userId);
+
+    // Self-healing: Check for pending payments that might have completed
+    for (const event of events) {
+        if (event.paymentStatus === 'PENDING' && event.pidx) {
+            try {
+                const verification = await khaltiService.verifyPayment(event.pidx);
+                if (verification.status === 'Completed') {
+                    await paymentProcessing.handlePaymentSuccess(event.id, verification);
+                    // Update local object so UI reflects change immediately
+                    event.paymentStatus = 'COMPLETED';
+                    event.status = 'REGISTERED';
+                }
+            } catch (e) {
+                console.error(`Auto-verification failed for ${event.id}`, e);
+            }
+        }
+    }
 
     return c.json({
       success: true,
@@ -102,6 +122,21 @@ userRoutes.put('/profile', authMiddleware, async c => {
       },
       500
     );
+  }
+});
+
+userRoutes.get('/stats', authMiddleware, async c => {
+  try {
+    const { userId } = c.get('user');
+    const stats = await userService.getStats(userId);
+    
+    return c.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+    return c.json({ success: false, error: 'Failed to fetch stats' }, 500);
   }
 });
 

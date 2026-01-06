@@ -1,10 +1,7 @@
 import { PrismaClient } from '../src/generated/prisma/index.js';
 import bcrypt from 'bcrypt';
-import fs from 'fs-extra';
-import path from 'path';
 
 const prisma = new PrismaClient();
-const backupFile = path.join(process.cwd(), 'prisma/data/backup.json');
 
 const images = [
   '/uploads/06d195c43b8e7563f26d849fae2e4fd6.jpg',
@@ -41,236 +38,291 @@ const images = [
   '/uploads/fe215e162a9e25acbbc14de9bf9a1c69.jpg'
 ];
 
-const categoriesData = [
-  { name: 'Music & Concerts', slug: 'music-concerts', description: 'Live music performances, concerts, and music festivals', icon: '🎵', color: '#FF6B6B' },
-  { name: 'Sports & Fitness', slug: 'sports-fitness', description: 'Sports events, fitness classes, and athletic competitions', icon: '🏃', color: '#4ECDC4' },
-  { name: 'Arts & Culture', slug: 'arts-culture', description: 'Art exhibitions, cultural events, and creative workshops', icon: '🎨', color: '#95E1D3' },
-  { name: 'Food & Drink', slug: 'food-drink', description: 'Food festivals, cooking classes, and culinary experiences', icon: '🍔', color: '#F38181' },
-  { name: 'Business & Networking', slug: 'business-networking', description: 'Professional networking, conferences, and business meetups', icon: '💼', color: '#AA96DA' },
-  { name: 'Technology & Innovation', slug: 'technology-innovation', description: 'Tech conferences, hackathons, and innovation summits', icon: '💻', color: '#5B9BD5' },
-];
-
 async function main() {
   console.log('🌱 Seeding database...');
 
-  // 1. Check for Backup File
-  if (await fs.pathExists(backupFile)) {
-    console.log('📂 Found backup file. Restoring from backup...');
-    const backup = await fs.readJson(backupFile);
-
-    // RESTORE USERS
-    if (backup.users?.length) {
-      console.log(`Restoring ${backup.users.length} users...`);
-      for (const user of backup.users) {
-        await prisma.user.upsert({
-          where: { id: user.id },
-          create: user,
-          update: user,
-        });
-      }
-    }
-
-    // RESTORE CATEGORIES
-    if (backup.categories?.length) {
-      console.log(`Restoring ${backup.categories.length} categories...`);
-      for (const cat of backup.categories) {
-        await prisma.category.upsert({
-          where: { id: cat.id },
-          create: cat,
-          update: cat,
-        });
-      }
-    }
-
-    // RESTORE EVENTS
-    if (backup.events?.length) {
-      console.log(`Restoring ${backup.events.length} events...`);
-      for (const event of backup.events) {
-        // Handle decimals if stored as strings/numbers
-        if (event.price) event.price = event.price;
-        
-        await prisma.event.upsert({
-          where: { id: event.id },
-          create: event,
-          update: event,
-        });
-      }
-    }
-
-    // RESTORE ATTENDEES
-    if (backup.attendees?.length) {
-      console.log(`Restoring ${backup.attendees.length} attendees...`);
-      for (const attendee of backup.attendees) {
-        await prisma.attendee.upsert({
-          where: { id: attendee.id },
-          create: attendee,
-          update: attendee,
-        });
-      }
-    }
-
-    console.log('✅ Restore execution completed!');
-    return;
-  }
-
-  // 2. Default Seeding (No Backup Found)
-  console.log('⚠️ No backup file found. Using default seed data.');
-
-  // Create Admin User
-  const password = await bcrypt.hash('password123', 10);
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@example.com' },
-    update: {},
-    create: {
-      email: 'admin@example.com',
-      username: 'EventAdmin',
-      password,
-      role: 'ADMIN',
-      avatar: images[0],
-    },
-  });
-  console.log('✅ Created admin user');
-
-  // Clear existing events first (handles dependency)
-  await prisma.event.deleteMany({});
-  console.log('✅ Cleared existing events');
-
-  // Clear existing categories
-  await prisma.category.deleteMany({});
+  // 1. Clear Database
+  await prisma.attendee.deleteMany();
+  await prisma.event.deleteMany();
+  await prisma.category.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.systemSetting.deleteMany();
   
-  // Create categories
-  const createdCategories = [];
-  for (const category of categoriesData) {
-    const cat = await prisma.category.create({ data: category });
-    createdCategories.push(cat);
-  }
-  console.log(`✅ Created ${createdCategories.length} categories`);
+  console.log('✅ Cleared database');
 
-  // Generate Events
+  // 2. Create System Settings
+  await prisma.systemSetting.create({
+    data: {
+      key: 'COMMISSION_RATE',
+      value: '10', // 10%
+      description: 'Platform commission rate in percentage',
+    }
+  });
+  console.log('✅ Set default commission to 10%');
+
+  // 3. Create Users
+  const password = await bcrypt.hash('Hello@123', 10);
+  const userPassword = await bcrypt.hash('hello@123', 10);
+  
+  // 1. Admin (Platform Owner)
+  const admin = await prisma.user.create({
+    data: {
+      email: 'lenishmagar@gmail.com',
+      username: 'Lenish Admin',
+      password, // Hello@123
+      role: 'ADMIN',
+      avatar: 'https://ui-avatars.com/api/?name=Lenish+Admin&background=0D8ABC&color=fff',
+      balance: 0,
+    }
+  });
+
+  // 2. Standard User (Organizer & Attendee)
+  const user = await prisma.user.create({
+    data: {
+      email: 'lenishmagar123@gmail.com',
+      username: 'Lenish User',
+      password: userPassword, // hello@123
+      role: 'USER',
+      avatar: 'https://ui-avatars.com/api/?name=Lenish+User&background=random',
+      balance: 0,
+    }
+  });
+
+  console.log('✅ Created 2 Users: Admin & User');
+
+  // 4. Create Categories
+  const categoriesData = [
+    { name: 'Music & Concerts', slug: 'music-concerts', icon: '🎵', color: '#FF6B6B' },
+    { name: 'Technology & Innovation', slug: 'technology-innovation', icon: '💻', color: '#5B9BD5' },
+    { name: 'Sports & Fitness', slug: 'sports-fitness', icon: '�', color: '#4ECDC4' },
+    { name: 'Food & Drink', slug: 'food-drink', icon: '🍔', color: '#F38181' },
+  ];
+
+  const createdCategories = [];
+  for (const cat of categoriesData) {
+    createdCategories.push(await prisma.category.create({ data: cat }));
+  }
+  console.log('✅ Created Categories');
+
+  // 5. Create Events
   const events = [
+    // --- Admin Owned Events (100% Revenue) ---
     {
-      title: 'Summer Music Festival',
-      description: 'Experience the biggest music festival of the summer with top artists from around the world.',
-      city: 'Kathmandu',
-      country: 'Nepal',
-      venueName: 'Dasarath Rangasala',
+      title: 'Summer Music Festival 2025',
+      slug: 'summer-music-festival',
+      description: 'Experience the biggest music festival of the summer with international artists.',
       startDate: new Date('2025-06-15T14:00:00Z'),
       endDate: new Date('2025-06-15T23:00:00Z'),
+      city: 'Kathmandu',
+      venueName: 'Dasarath Rangasala',
       price: 5000,
       currency: 'NPR',
       capacity: 10000,
-      slug: 'summer-music-festival-2025'
-    },
-    {
-      title: 'Tech Innovation Summit 2025',
-      description: 'Join industry leaders to discuss the future of technology and innovation.',
-      city: 'Lalitpur',
-      country: 'Nepal',
-      venueName: 'Hotel Himalaya',
-      startDate: new Date('2025-04-10T09:00:00Z'),
-      endDate: new Date('2025-04-12T17:00:00Z'),
-      price: 15000,
-      currency: 'NPR',
-      capacity: 500,
-      slug: 'tech-innovation-summit-2025'
-    },
-    {
-      title: 'Global Food Expo',
-      description: 'Taste cuisines from over 30 countries at this culinary extravaganza.',
-      city: 'Bhaktapur',
-      country: 'Nepal',
-      venueName: 'Bhaktapur Durbar Square',
-      startDate: new Date('2025-05-20T11:00:00Z'),
-      endDate: new Date('2025-05-22T20:00:00Z'),
-      price: 1000,
-      currency: 'NPR',
-      capacity: 2000,
-      slug: 'global-food-expo-2025'
-    },
-    {
-      title: 'City Marathon 2025',
-      description: 'Annual city marathon raising funds for local charities.',
-      city: 'Pokhara',
-      country: 'Nepal',
-      venueName: 'Lakeside',
-      startDate: new Date('2025-03-05T06:00:00Z'),
-      endDate: new Date('2025-03-05T12:00:00Z'),
-      price: 2500,
-      currency: 'NPR',
-      capacity: 3000,
-      slug: 'city-marathon-2025'
-    },
-    {
-      title: 'Modern Art Gallery Opening',
-      description: 'Exclusive opening of the new modern art collection featuring local artists.',
-      city: 'Kathmandu',
-      country: 'Nepal',
-      venueName: 'Nepal Art Council',
-      startDate: new Date('2025-02-14T18:00:00Z'),
-      endDate: new Date('2025-02-14T22:00:00Z'),
-      price: 0,
-      capacity: 200,
-      isFree: true,
-      slug: 'modern-art-gallery-opening'
+      status: 'PUBLISHED',
+      categoryId: createdCategories[0].id, // Music
+      organizerId: admin.id,
+      coverImage: images[0],
+      isFree: false,
     },
     {
       title: 'Startup Networking Night',
+      slug: 'startup-networking',
       description: 'Connect with founders, investors, and fellow entrepreneurs.',
       city: 'Kathmandu',
-      country: 'Nepal',
       venueName: 'Work Around',
       startDate: new Date('2025-01-30T17:00:00Z'),
       endDate: new Date('2025-01-30T20:00:00Z'),
       price: 500,
       currency: 'NPR',
       capacity: 100,
-      slug: 'startup-networking-night'
+      status: 'PUBLISHED',
+      categoryId: createdCategories[1].id, // Tech
+      organizerId: admin.id,
+      coverImage: images[4],
+      isFree: false,
+    },
+    {
+      title: 'Charity Gala Dinner',
+      slug: 'charity-gala',
+      description: 'Annual charity fundraising dinner for local schools.',
+      startDate: new Date('2025-08-20T19:00:00Z'),
+      endDate: new Date('2025-08-20T22:00:00Z'),
+      city: 'Kathmandu',
+      venueName: 'Hotel Yak & Yeti',
+      price: 10000,
+      currency: 'NPR',
+      capacity: 200,
+      status: 'PUBLISHED',
+      categoryId: createdCategories[3].id, // Food
+      organizerId: admin.id,
+      coverImage: images[2],
+      isFree: false,
+    },
+
+    // --- User Owned Events (90% Revenue / 10% Commission) ---
+    {
+      title: 'User Tech Workshop',
+      slug: 'user-tech-workshop',
+      description: 'A hands-on workshop on modern web development organized by the community.',
+      startDate: new Date('2025-11-15T10:00:00Z'),
+      endDate: new Date('2025-11-15T16:00:00Z'),
+      city: 'Lalitpur',
+      venueName: 'Tech Hub',
+      price: 1000,
+      currency: 'NPR',
+      capacity: 50,
+      status: 'PUBLISHED',
+      categoryId: createdCategories[1].id, // Tech
+      organizerId: user.id,
+      coverImage: images[5],
+       isFree: false,
+    },
+    {
+      title: 'Global Food Expo',
+      slug: 'global-food-expo',
+      description: 'Taste cuisines from over 30 countries in one place.',
+      startDate: new Date('2025-05-20T11:00:00Z'),
+      endDate: new Date('2025-05-22T20:00:00Z'),
+      city: 'Bhaktapur',
+      venueName: 'Bhaktapur Durbar Square',
+      price: 500,
+      currency: 'NPR',
+      capacity: 2000,
+      status: 'PUBLISHED',
+      categoryId: createdCategories[3].id, // Food
+      organizerId: user.id,
+      coverImage: images[3],
+       isFree: false,
+    },
+    {
+      title: 'City Marathon 2025',
+      slug: 'city-marathon-2025',
+      description: 'Run for health! Annual city marathon.',
+      city: 'Pokhara',
+      venueName: 'Lakeside',
+      startDate: new Date('2025-03-05T06:00:00Z'),
+      endDate: new Date('2025-03-05T12:00:00Z'),
+      price: 2500,
+      currency: 'NPR',
+      capacity: 3000,
+      status: 'PUBLISHED',
+      categoryId: createdCategories[2].id, // Sports
+      organizerId: user.id,
+      coverImage: images[1],
+       isFree: false,
+    },
+    {
+      title: 'Yoga in the Park',
+      slug: 'yoga-park',
+      description: 'Morning yoga session for mindfulness and health.',
+      city: 'Kathmandu',
+      venueName: 'Ratna Park',
+      startDate: new Date('2025-04-01T06:00:00Z'),
+      endDate: new Date('2025-04-01T07:30:00Z'),
+      price: 0,
+      currency: 'NPR',
+      capacity: 50,
+      status: 'PUBLISHED',
+      categoryId: createdCategories[2].id, // Sports
+      organizerId: user.id,
+      coverImage: images[6] || images[0],
+      isFree: true,
+    },
+    {
+      title: 'Indie Game Showcase',
+      slug: 'indie-game-showcase',
+      description: 'Showcase your indie games and meet developers.',
+      city: 'Lalitpur',
+      venueName: 'Labim Mall',
+      startDate: new Date('2025-09-10T10:00:00Z'),
+      endDate: new Date('2025-09-10T18:00:00Z'),
+      price: 200,
+      currency: 'NPR',
+      capacity: 500,
+      status: 'PUBLISHED',
+      categoryId: createdCategories[1].id, // Tech
+      organizerId: user.id,
+      coverImage: images[7] || images[1],
+      isFree: false,
     }
   ];
 
-  for (let i = 0; i < events.length; i++) {
-    const event = events[i];
-    const category = createdCategories[i % createdCategories.length];
-    const eventImages = images.slice(i * 3, (i * 3) + 3);
-
-    // Check if event exists
-    const existingEvent = await prisma.event.findFirst({
-      where: { slug: event.slug }
-    });
-
-    if (existingEvent) {
-      await prisma.event.update({
-        where: { id: existingEvent.id },
+  for (const event of events) {
+      await prisma.event.create({ 
         data: {
           ...event,
-          categoryId: category.id,
-          organizerId: admin.id,
-          coverImage: eventImages[0],
-          images: eventImages.slice(1),
-          status: 'PUBLISHED',
-        },
+          status: event.status as 'PUBLISHED' | 'DRAFT' | 'CANCELLED'
+        } 
       });
-    } else {
-      await prisma.event.create({
-        data: {
-          ...event,
-          categoryId: category.id,
-          organizerId: admin.id,
-          coverImage: eventImages[0],
-          images: eventImages.slice(1),
-          status: 'PUBLISHED',
-        },
-      });
-    }
   }
 
-  console.log(`✅ Seeded ${events.length} events`);
+  // 6. Simulate Transactions (Earnings)
+  console.log('💸 Simulating transactions...');
+
+  // Scenario 1: Admin buys ticket for User's "User Tech Workshop" (Price: 1000)
+  // Commission: 10% (100) -> Admin Balance
+  // Earning: 90% (900) -> User Balance
+  
+  const userEvent = await prisma.event.findUnique({ where: { slug: 'user-tech-workshop' } });
+  if (userEvent) {
+    await prisma.attendee.create({
+      data: {
+        eventId: userEvent.id,
+        userId: admin.id,
+        status: 'REGISTERED',
+        paymentStatus: 'COMPLETED',
+        paymentAmount: 1000,
+        platformFee: 100,
+        ticketCount: 1,
+        ticketType: 'General',
+        registeredAt: new Date(Date.now() - 86400000), // Yesterday
+      }
+    });
+
+    // Update Balances
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { balance: { increment: 900 } }
+    });
+    await prisma.user.update({
+      where: { id: admin.id },
+      data: { balance: { increment: 100 } }
+    });
+  }
+
+  // Scenario 2: User buys ticket for Admin's "Admin Mega Concert" (Price: 5000)
+  // Commission: 0% -> Admin gets 100% (5000)
+  
+  const adminEvent = await prisma.event.findUnique({ where: { slug: 'admin-mega-concert' } });
+  if (adminEvent) {
+    await prisma.attendee.create({
+      data: {
+        eventId: adminEvent.id,
+        userId: user.id, // User buying
+        status: 'REGISTERED',
+        paymentStatus: 'COMPLETED',
+        paymentAmount: 5000,
+        platformFee: 0,
+        ticketCount: 1,
+        ticketType: 'VIP',
+        registeredAt: new Date(Date.now() - 172800000), // 2 Days ago
+      }
+    });
+
+    // Update Admin Balance
+    await prisma.user.update({
+      where: { id: admin.id },
+      data: { balance: { increment: 5000 } }
+    });
+  }
+
+  console.log('✅ Created Simulated Transactions (Check Earnings!)');
   console.log('🎉 Seeding completed!');
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Error seeding database:', e);
+    console.error(e);
     process.exit(1);
   })
   .finally(async () => {

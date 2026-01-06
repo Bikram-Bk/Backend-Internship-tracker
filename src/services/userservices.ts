@@ -20,6 +20,7 @@ export const userService = {
         phone: true,
         avatar: true,
         role: true,
+        balance: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -38,6 +39,7 @@ export const userService = {
         phone: true,
         avatar: true,
         role: true,
+        balance: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -53,6 +55,7 @@ export const userService = {
         phone: true,
         avatar: true,
         role: true,
+        balance: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -84,6 +87,7 @@ export const userService = {
           username: true,
           password: true,
           role: true,
+          balance: true,
         },
       });
 
@@ -100,6 +104,7 @@ export const userService = {
             email: user.email,
             username: user.username,
             role: user.role,
+            balance: user.balance,
           },
         },
       };
@@ -127,6 +132,7 @@ export const userService = {
         phone: true,
         avatar: true,
         role: true,
+        balance: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -142,9 +148,63 @@ export const userService = {
         phone: true,
         avatar: true,
         role: true,
+        balance: true,
         createdAt: true,
         updatedAt: true,
       },
     });
   },
+
+  getStats: async (userId: string) => {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new Error('User not found');
+
+    let transactions = [];
+
+    if (user.role === 'ADMIN') {
+      // Admin sees Commissions
+      const attendees = await prisma.attendee.findMany({
+        where: { platformFee: { gt: 0 } },
+        include: { event: true, user: true },
+        orderBy: { registeredAt: 'desc' }
+      });
+      
+      transactions = attendees.map(a => ({
+        id: a.id,
+        type: 'COMMISSION',
+        title: `Commission from ${a.event.title}`,
+        subtitle: `Sold to ${a.user?.username || 'Guest'}`,
+        amount: Number(a.platformFee),
+        fee: 0,
+        date: a.registeredAt
+      }));
+    } else {
+        // Organizer sees Ticket Sales
+        const attendees = await prisma.attendee.findMany({
+            where: { 
+                event: { organizerId: userId },
+                paymentStatus: 'COMPLETED'
+            },
+            include: { event: true, user: true },
+            orderBy: { registeredAt: 'desc' }
+        });
+
+        transactions = attendees.map(a => {
+            const amount = Number(a.paymentAmount || 0);
+            const fee = Number(a.platformFee || 0);
+            // Organizer gets: Amount - Fee
+            return {
+                id: a.id,
+                type: 'SALE',
+                title: `Ticket Sale: ${a.event.title}`,
+                subtitle: `Sold to ${a.user?.username || 'Guest'}`,
+                amount: amount - fee,
+                fee: fee, // Show how much fee was taken
+                date: a.registeredAt
+            };
+        });
+    }
+
+    return { transactions };
+  }
 };
