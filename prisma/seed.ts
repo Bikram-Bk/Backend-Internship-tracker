@@ -35,7 +35,7 @@ const images = [
   '/uploads/cb2cdd17c3053ff700a425792d3d10b5.jpg',
   '/uploads/dbf0e331bf0b46da8a0d6a19344fa08c.jpg',
   '/uploads/e1305d2620572f1dca964938f92b601e.jpg',
-  '/uploads/fe215e162a9e25acbbc14de9bf9a1c69.jpg'
+  '/uploads/fe215e162a9e25acbbc14de9bf9a1c69.jpg',
 ];
 
 async function main() {
@@ -47,7 +47,7 @@ async function main() {
   await prisma.category.deleteMany();
   await prisma.user.deleteMany();
   await prisma.systemSetting.deleteMany();
-  
+
   console.log('✅ Cleared database');
 
   // 2. Create System Settings
@@ -56,24 +56,25 @@ async function main() {
       key: 'COMMISSION_RATE',
       value: '10', // 10%
       description: 'Platform commission rate in percentage',
-    }
+    },
   });
   console.log('✅ Set default commission to 10%');
 
   // 3. Create Users
-  const password = await bcrypt.hash('Hello@123', 10);
+  const password = await bcrypt.hash('@bbk7767', 10);
   const userPassword = await bcrypt.hash('hello@123', 10);
-  
+
   // 1. Admin (Platform Owner)
   const admin = await prisma.user.create({
     data: {
-      email: 'lenishmagar@gmail.com',
-      username: 'Lenish Admin',
+      email: 'bikrambk2244@gmail.com',
+      username: 'Bikram',
       password, // Hello@123
       role: 'ADMIN',
-      avatar: 'https://ui-avatars.com/api/?name=Lenish+Admin&background=0D8ABC&color=fff',
+      avatar:
+        'https://ui-avatars.com/api/?name=Lenish+Admin&background=0D8ABC&color=fff',
       balance: 0,
-    }
+    },
   });
 
   // 2. Standard User (Organizer & Attendee)
@@ -85,16 +86,31 @@ async function main() {
       role: 'USER',
       avatar: 'https://ui-avatars.com/api/?name=Lenish+User&background=random',
       balance: 0,
-    }
+    },
   });
 
   console.log('✅ Created 2 Users: Admin & User');
 
   // 4. Create Categories
   const categoriesData = [
-    { name: 'Music & Concerts', slug: 'music-concerts', icon: '🎵', color: '#FF6B6B' },
-    { name: 'Technology & Innovation', slug: 'technology-innovation', icon: '💻', color: '#5B9BD5' },
-    { name: 'Sports & Fitness', slug: 'sports-fitness', icon: '�', color: '#4ECDC4' },
+    {
+      name: 'Music & Concerts',
+      slug: 'music-concerts',
+      icon: '🎵',
+      color: '#FF6B6B',
+    },
+    {
+      name: 'Technology & Innovation',
+      slug: 'technology-innovation',
+      icon: '💻',
+      color: '#5B9BD5',
+    },
+    {
+      name: 'Sports & Fitness',
+      slug: 'sports-fitness',
+      icon: '�',
+      color: '#4ECDC4',
+    },
     { name: 'Food & Drink', slug: 'food-drink', icon: '🍔', color: '#F38181' },
   ];
 
@@ -110,7 +126,8 @@ async function main() {
     {
       title: 'Summer Music Festival 2025',
       slug: 'summer-music-festival',
-      description: 'Experience the biggest music festival of the summer with international artists.',
+      description:
+        'Experience the biggest music festival of the summer with international artists.',
       startDate: new Date('2025-06-15T14:00:00Z'),
       endDate: new Date('2025-06-15T23:00:00Z'),
       city: 'Kathmandu',
@@ -127,7 +144,8 @@ async function main() {
     {
       title: 'Startup Networking Night',
       slug: 'startup-networking',
-      description: 'Connect with founders, investors, and fellow entrepreneurs.',
+      description:
+        'Connect with founders, investors, and fellow entrepreneurs.',
       city: 'Kathmandu',
       venueName: 'Work Around',
       startDate: new Date('2025-01-30T17:00:00Z'),
@@ -163,7 +181,8 @@ async function main() {
     {
       title: 'User Tech Workshop',
       slug: 'user-tech-workshop',
-      description: 'A hands-on workshop on modern web development organized by the community.',
+      description:
+        'A hands-on workshop on modern web development organized by the community.',
       startDate: new Date('2025-11-15T10:00:00Z'),
       endDate: new Date('2025-11-15T16:00:00Z'),
       city: 'Lalitpur',
@@ -175,7 +194,7 @@ async function main() {
       categoryId: createdCategories[1].id, // Tech
       organizerId: user.id,
       coverImage: images[5],
-       isFree: false,
+      isFree: false,
     },
     {
       title: 'Global Food Expo',
@@ -192,7 +211,7 @@ async function main() {
       categoryId: createdCategories[3].id, // Food
       organizerId: user.id,
       coverImage: images[3],
-       isFree: false,
+      isFree: false,
     },
     {
       title: 'City Marathon 2025',
@@ -209,7 +228,7 @@ async function main() {
       categoryId: createdCategories[2].id, // Sports
       organizerId: user.id,
       coverImage: images[1],
-       isFree: false,
+      isFree: false,
     },
     {
       title: 'Yoga in the Park',
@@ -244,16 +263,16 @@ async function main() {
       organizerId: user.id,
       coverImage: images[7] || images[1],
       isFree: false,
-    }
+    },
   ];
 
   for (const event of events) {
-      await prisma.event.create({ 
-        data: {
-          ...event,
-          status: event.status as 'PUBLISHED' | 'DRAFT' | 'CANCELLED'
-        } 
-      });
+    await prisma.event.create({
+      data: {
+        ...event,
+        status: event.status as 'PUBLISHED' | 'DRAFT' | 'CANCELLED',
+      },
+    });
   }
 
   // 6. Simulate Transactions (Earnings)
@@ -262,8 +281,10 @@ async function main() {
   // Scenario 1: Admin buys ticket for User's "User Tech Workshop" (Price: 1000)
   // Commission: 10% (100) -> Admin Balance
   // Earning: 90% (900) -> User Balance
-  
-  const userEvent = await prisma.event.findUnique({ where: { slug: 'user-tech-workshop' } });
+
+  const userEvent = await prisma.event.findUnique({
+    where: { slug: 'user-tech-workshop' },
+  });
   if (userEvent) {
     await prisma.attendee.create({
       data: {
@@ -276,24 +297,26 @@ async function main() {
         ticketCount: 1,
         ticketType: 'General',
         registeredAt: new Date(Date.now() - 86400000), // Yesterday
-      }
+      },
     });
 
     // Update Balances
     await prisma.user.update({
       where: { id: user.id },
-      data: { balance: { increment: 900 } }
+      data: { balance: { increment: 900 } },
     });
     await prisma.user.update({
       where: { id: admin.id },
-      data: { balance: { increment: 100 } }
+      data: { balance: { increment: 100 } },
     });
   }
 
   // Scenario 2: User buys ticket for Admin's "Admin Mega Concert" (Price: 5000)
   // Commission: 0% -> Admin gets 100% (5000)
-  
-  const adminEvent = await prisma.event.findUnique({ where: { slug: 'admin-mega-concert' } });
+
+  const adminEvent = await prisma.event.findUnique({
+    where: { slug: 'admin-mega-concert' },
+  });
   if (adminEvent) {
     await prisma.attendee.create({
       data: {
@@ -306,13 +329,13 @@ async function main() {
         ticketCount: 1,
         ticketType: 'VIP',
         registeredAt: new Date(Date.now() - 172800000), // 2 Days ago
-      }
+      },
     });
 
     // Update Admin Balance
     await prisma.user.update({
       where: { id: admin.id },
-      data: { balance: { increment: 5000 } }
+      data: { balance: { increment: 5000 } },
     });
   }
 
@@ -321,7 +344,7 @@ async function main() {
 }
 
 main()
-  .catch((e) => {
+  .catch(e => {
     console.error(e);
     process.exit(1);
   })
