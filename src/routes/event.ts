@@ -114,8 +114,9 @@ eventRoutes.get('/:id/attendees', authMiddleware, async (c) => {
   try {
     const user = c.get('user');
     const id = c.req.param('id');
-
-    const attendees = await eventService.getEventAttendees(id, user.userId);
+ 
+    const isAdmin = user.role === 'ADMIN' || user.role === 'MODERATOR';
+    const attendees = await eventService.getEventAttendees(id, user.userId, isAdmin);
 
     return c.json({
       success: true,

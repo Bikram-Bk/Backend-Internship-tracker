@@ -177,6 +177,29 @@ adminRoutes.get('/events/pending', requireModerator(), async (c) => {
   }
 });
 
+// GET /api/admin/events - List all events (moderator+)
+adminRoutes.get('/events', requireModerator(), async (c) => {
+  try {
+    const events = await adminService.getAllEvents();
+
+    return c.json({
+      success: true,
+      data: events,
+      message: 'All events retrieved successfully',
+    });
+  } catch (error) {
+    console.error('Error fetching events:', error);
+    return c.json(
+      {
+        success: false,
+        error: 'Failed to fetch events',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
+      500
+    );
+  }
+});
+
 // POST /api/admin/events/:id/approve - Approve event (moderator+)
 adminRoutes.post('/events/:id/approve', requireModerator(), async (c) => {
   try {

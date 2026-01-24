@@ -169,9 +169,32 @@ export const adminService = {
       },
     };
   },
-
+ 
   // ==================== EVENT MODERATION ====================
-
+ 
+  // Get all events regardless of status
+  async getAllEvents() {
+    return await prisma.event.findMany({
+      include: {
+        category: true,
+        organizer: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            avatar: true,
+          },
+        },
+        _count: {
+          select: {
+            attendees: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  },
+ 
   // Get pending events (drafts or awaiting approval)
   async getPendingEvents() {
     return await prisma.event.findMany({

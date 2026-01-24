@@ -223,7 +223,7 @@ export const eventService = {
   },
 
   // Get event attendees
-  async getEventAttendees(eventId: string, userId: string) {
+  async getEventAttendees(eventId: string, userId: string, isAdmin: boolean = false) {
     // Verify ownership
     const event = await prisma.event.findUnique({
       where: { id: eventId },
@@ -231,7 +231,7 @@ export const eventService = {
     });
 
     if (!event) throw new Error('Event not found');
-    if (event.organizerId !== userId) throw new Error('Unauthorized');
+    if (event.organizerId !== userId && !isAdmin) throw new Error('Unauthorized');
 
     return await prisma.attendee.findMany({
       where: { eventId },
