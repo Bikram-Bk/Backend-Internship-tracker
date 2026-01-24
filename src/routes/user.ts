@@ -82,16 +82,18 @@ userRoutes.get('/profile', authMiddleware, async c => {
   }
 });
 
-userRoutes.put('/profile', authMiddleware, async c => {
+userRoutes.patch('/update-profile', authMiddleware, async c => {
   try {
     const { userId } = c.get('user');
     const body = await c.req.json();
-
+ 
     // Only allow updating specific fields
-    const updateData: { username?: string; phone?: string } = {};
+    const updateData: { username?: string; phone?: string; email?: string; avatar?: string } = {};
     if (body.username !== undefined) updateData.username = body.username;
     if (body.phone !== undefined) updateData.phone = body.phone;
-
+    if (body.email !== undefined) updateData.email = body.email;
+    if (body.avatar !== undefined) updateData.avatar = body.avatar;
+ 
     if (Object.keys(updateData).length === 0) {
       return c.json(
         {
@@ -101,9 +103,41 @@ userRoutes.put('/profile', authMiddleware, async c => {
         400
       );
     }
+ 
+    // Validation
+    if (updateData.username !== undefined) {
+      const nameRegex = /^[a-zA-Z\s]+$/;
+      if (!updateData.username.trim()) {
+        return c.json({ success: false, error: 'Username is required' }, 400);
+      } else if (!nameRegex.test(updateData.username)) {
+        return c.json({ success: false, error: 'Name should only contain letters' }, 400);
+      }
+    }
+
+    if (updateData.email !== undefined) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!updateData.email.trim()) {
+        return c.json({ success: false, error: 'Email is required' }, 400);
+      } else if (!emailRegex.test(updateData.email)) {
+        return c.json({ success: false, error: 'Please enter a valid email address' }, 400);
+      }
+
+      // Check for uniqueness
+      const existingUser = await userService.findByEmail(updateData.email);
+      if (existingUser && existingUser.id !== userId) {
+        return c.json({ success: false, error: 'Email already exists' }, 409);
+      }
+    }
+
+    if (updateData.phone !== undefined && updateData.phone.trim() !== "") {
+      const phoneRegex = /^\d{10}$/;
+      if (!phoneRegex.test(updateData.phone)) {
+        return c.json({ success: false, error: 'Phone number must be exactly 10 digits' }, 400);
+      }
+    }
 
     const user = await userService.updateProfile(userId, updateData);
-
+ 
     return c.json(
       {
         success: true,

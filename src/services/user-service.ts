@@ -112,7 +112,7 @@ export const userService = {
 
   updateProfile: async (
     userId: string,
-    updateData: { username?: string; phone?: string }
+    updateData: { username?: string; phone?: string; email?: string; avatar?: string }
   ) => {
     if (!userId) {
       throw new Error('User ID is required');
