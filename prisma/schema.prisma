@@ -199,6 +199,19 @@ model Event {
   coverImage String?
   images     String[]
 
+  // Wedding Fields
+  brideName String?
+  groomName String?
+
+  // Pasni Fields
+  babyName   String?
+  babyGender String?
+  babyDob    DateTime?
+  muhurtaTime String?
+
+  // Bartaband Fields
+  boyName     String?
+
   // Metadata
   tags      String[]
   viewCount Int      @default(0)
